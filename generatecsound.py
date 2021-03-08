@@ -2,8 +2,9 @@ import fileinput
 import subprocess
 
 def noteToFreq(note):
-    a = 440 #frequency of A4 (common value is 440Hz)
-    return (a / 32) * (2 ** ((note - 9) / 12))
+    baseFreq = 440 #frequency of A4
+    frequency = (baseFreq / 32) * (2 ** ((note - 9) / 12))
+    return frequency
 
 def printFormat(notes):
 	with open('pythontest.txt', 'w') as f:
