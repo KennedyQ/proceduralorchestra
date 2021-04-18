@@ -1,6 +1,7 @@
 import os
 import subprocess
 import random
+import fileinput
 
 class Performer():
 	def __init__(self, minimumnote, maximumnote, chancetodecrease, chancetoincrease, sequencemodifier, startingnote, followprevioustempo, mode, harmonize, harmonizationmode = 0):
@@ -11,10 +12,40 @@ class Performer():
 		self.sequencemodifier = sequencemodifier
 		self.startingnote = startingnote
 		self.followprevioustempo = followprevioustempo
-		self.mode = mode
+		self.mode = self.enumMode(mode)
 		self.key = self.keygen()
 		self.harmonize = harmonize
 		self.harmonizationmode = harmonizationmode
+
+	def __str__(self):
+		printstr = ""
+		printstr += str(self.minimumnote) + ", "
+		printstr += str(self.maximumnote) + ", "
+		printstr += str(self.chancetodecrease) + ", "
+		printstr += str(self.chancetoincrease) + ", "
+		printstr += str(self.sequencemodifier) + ", "
+		printstr += str(self.startingnote) + ", "
+		printstr += str(self.followprevioustempo) + ", "
+		printstr += str(self.mode) + ", "
+		printstr += str(self.harmonize) + ", "
+		printstr += str(self.harmonizationmode)
+		return printstr
+
+	def enumMode(self, mode):
+		if (mode == "Major" or mode == "Ionian"):
+			return [2,2,1,2,2,2,1]
+		elif (mode == "Dorian"):
+			return [2,1,2,2,2,1,2]
+		elif (mode == "Phrygian"):
+			return [1,2,2,2,1,2,2]
+		elif (mode == "Lydian"):
+			return [2,2,2,1,2,2,1]
+		elif (mode == "Mixolydian"):
+			return [2,2,1,2,2,1,2]
+		elif (mode == "Minor" or mode == "Aeolian"):
+			return [2,1,2,2,1,2,2,]
+		elif (mode == "Locrian"):
+			return [1,2,2,1,2,2,2]
 
 	def keygen(self):
 		key = []
@@ -49,7 +80,7 @@ class ProceduralOrchestra():
 	def generateNoteString(self, filename, bpm, length, instruments):
 		with open(filename, 'w') as f:
 			durations = [0.5, 1, 2, 4]
-			savednotelengths = ""
+			savednotelengths = {}
 			savednotes = []
 			newsavednotes = []
 			previouskey = []
@@ -119,18 +150,12 @@ class ProceduralOrchestra():
 								else:
 									note = new
 								sequence = 1
-						if (not instrument.followprevioustempo):
-							durrand = random.randrange(0,4)
-							while (durations[durrand] + cumuldur > length):
-								durrand = random.randrange(0,4)
-							filestring += str(instrumentid) + " " + str(instrument.key[note]) + " " + str(durations[durrand])
-							savednotelengths += str(durrand)
-							newsavednotes.append(instrument.key[note])
-							cumuldur += durations[durrand]
-						else:
-							filestring += str(instrumentid) + " " + str(instrument.key[note]) + " " + str(durations[int(savednotelengths[i])])
-							newsavednotes.append(instrument.key[note])
-							cumuldur += durations[int(savednotelengths[i])]
+						noteduration = self.selectDuration(instrument, durations, savednotelengths, cumuldur, length)
+						if (cumuldur + noteduration == length):
+							note = instrument.key.index(instrument.startingnote)
+						filestring += str(instrumentid) + " " + str(instrument.key[note]) + " " + str(noteduration)
+						cumuldur += noteduration
+						newsavednotes.append([instrument.key[note], cumuldur])
 						if (not cumuldur == length):
 							filestring += "\n"
 						i += 1
@@ -138,7 +163,10 @@ class ProceduralOrchestra():
 					harmony = [0,2,4,7]
 					mergedkey = self.mergekeys(previouskey, instrument.key)
 					while cumuldur < length:
-						lastkeynote = mergedkey.index(savednotes[i])
+						j = 0
+						while(cumuldur > savednotes[j][1]):
+							j += 1
+						lastkeynote = mergedkey.index(savednotes[j][0])
 						mykeynote = mergedkey.index(instrument.key[note])
 						r = random.random()
 						if (sequence > 0):
@@ -192,9 +220,9 @@ class ProceduralOrchestra():
 									mykeynote += 1
 								harmonyindex = harmony.index((lastkeynote - mykeynote) % 7)
 								if (harmonyindex == 0):
-									new = savednotes[i]
+									new = savednotes[j][0]
 								else:
-									new = savednotes[i] - ((lastkeynote - mykeynote) - (harmony[harmonyindex] - harmony[harmonyindex-1]))
+									new = savednotes[j][0] - ((lastkeynote - mykeynote) - (harmony[harmonyindex] - harmony[harmonyindex-1]))
 								while(new >= len(instrument.key)):
 									new -= (harmony[harmonyindex] - harmony[harmonyindex-1])
 									harmonyindex += 1
@@ -275,18 +303,12 @@ class ProceduralOrchestra():
 									if (harmonyindex == 0):
 										harmonyindex = 1
 								note = new
-						if (not instrument.followprevioustempo):
-							durrand = random.randrange(0,4)
-							while (durations[durrand] + cumuldur > length):
-								durrand = random.randrange(0,4)
-							filestring += str(instrumentid) + " " + str(instrument.key[note]) + " " + str(durations[durrand])
-							savednotelengths += str(durrand)
-							newsavednotes.append(instrument.key[note])
-							cumuldur += durations[durrand]
-						else:
-							filestring += str(instrumentid) + " " + str(instrument.key[note]) + " " + str(durations[int(savednotelengths[i])])
-							newsavednotes.append(instrument.key[note])
-							cumuldur += durations[int(savednotelengths[i])]
+						noteduration = self.selectDuration(instrument, durations, savednotelengths, cumuldur, length)
+						if (cumuldur + noteduration == length):
+							note = instrument.key.index(instrument.startingnote)
+						filestring += str(instrumentid) + " " + str(instrument.key[note]) + " " + str(noteduration)
+						cumuldur += noteduration
+						newsavednotes.append([instrument.key[note], cumuldur])
 						if (not cumuldur == length):
 							filestring += "\n"
 						i += 1
@@ -363,17 +385,49 @@ class ProceduralOrchestra():
 			"</CsoundSynthesizer>"
 			f.write(filestring)
 			f.close()
+
+	def selectDuration(self, instrument, durations, savedDurations, currentDur, piecelength):
+		if (not instrument.followprevioustempo):
+			durrand = random.randrange(0,4)
+			selectedDur = durations[durrand]
+			while (selectedDur + currentDur > piecelength):
+				durrand = random.randrange(0,4)
+				selectedDur = durations[durrand]
+			savedDurations[currentDur] = selectedDur
+			return selectedDur
+		else:
+			return savedDurations[currentDur]
 		
 if (__name__ == "__main__"):
 	currentdirectory = os.getcwd()
 	notefilename = "pythoninput.txt"
 	csoundfilename = "pythontest.txt"
 	generator = ProceduralOrchestra()
-	testInstrument = Performer(60,79,.45,.45,1.05,72,False,[2,2,1,2,2,2,1],False)
-	testInstrument2 = Performer(55,72,.45,.45,1.05,60,True,[2,2,1,2,2,2,1],True,1) #1 = Unisons, 2nds, 3rds, 5ths, Otcaves Lower Only
-	testInstrument3 = Performer(48,67,.45,.45,1.05,60,False,[2,2,1,2,2,2,1],True,2) #2 = Lower Only
-	testInstrument4 = Performer(41,60,.45,.45,1.05,48,True,[2,2,1,2,2,2,1],True,1)
-	orchestra = [testInstrument, testInstrument2, testInstrument3, testInstrument4]
-	generator.generateNoteString(notefilename, 120, 240, orchestra)
+	orchestra = []
+	settingsSentinel = False
+	bpm = 0
+	duration = 0
+	for l in fileinput.input():
+		inputs = l.split(",")
+		if (not settingsSentinel):
+			bpm = int(inputs[0])
+			duration = int(inputs[1])
+			settingsSentinel = True
+		else:
+			if (len(inputs) > 9):
+				harmonymode = int(inputs[9])
+			else:
+				harmonymode = 0
+			if (inputs[6] == "True"):
+				rhythmbool = True
+			else:
+				rhythmbool = False
+			if (inputs[8] == "True"):
+				harmonybool = True
+			else:
+				harmonybool = False
+			newinstrument = Performer(int(inputs[0]),int(inputs[1]),float(inputs[2]),float(inputs[3]),float(inputs[4]),int(inputs[5]),rhythmbool,inputs[7],harmonybool,harmonymode)
+			orchestra.append(newinstrument)
+	generator.generateNoteString(notefilename, bpm, duration, orchestra)
 	generator.printFormat(csoundfilename, notefilename, orchestra)
 	subprocess.call(['csound', currentdirectory+"\\"+csoundfilename])
