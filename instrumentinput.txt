@@ -1,0 +1,3 @@
+72,144
+34,64,.45,.45,1.05,49,False,Locrian,False
+60,90,.45,.45,1.05,72,True,Major,False
